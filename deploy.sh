@@ -59,22 +59,4 @@ echo path: /$path
 echo ""
 echo 配置成功
 echo vmess://$vmess
-if [ ! -f "$CF" ]; then
-    echo "${BLUE}ibmcloud cf install${END}"
-    $IBMCLOUD cf install -f
-fi
 
-echo "${BLUE}cf login${END}"
-$CF login -a https://api.us-south.cf.cloud.ibm.com <<EOF
-$IBM_ACCOUNT
-EOF
-
-cd ./$IBM_APP_NAME
-echo "${BLUE}cf push${END}"
-$CF push
-
-if [ $? -ne 0 ]; then
-    echo "${BLUE}print cf push error${END}"
-    $CF logs $IBM_APP_NAME --recent
-    exit 1
-fi
