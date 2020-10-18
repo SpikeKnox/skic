@@ -1,85 +1,64 @@
-#! /bin/bash
-
-cd $(dirname $0)
-
-IBMCLOUD=$(pwd)/Bluemix_CLI/bin/ibmcloud
-CF=~/.bluemix/.cf/cfcli/cf
-#BLUE="\e[00;34m"
-#RED="\e[00;31m"
-#END="\e[0m"
-BLUE=""
-RED=""
-END="==================================="
-
-if [ ! -f "$IBMCLOUD" ]; then
-    echo "${BLUE}download ibm-cloud-cli-release${END}"
-    ver=$(curl -s https://github.com/IBM-Cloud/ibm-cloud-cli-release/releases/latest | grep -Po "(\d+\.){2}\d+")
-    #ver=1.1.0
-    wget -q -Oibm_cli.tgz https://clis.cloud.ibm.com/download/bluemix-cli/$ver/linux64
-    if [ $? -eq 0 ]; then
-        tar xzf ibm_cli.tgz
-    else
-        echo "${RED}download new version failed!${END}"
-        exit 1
-    fi
-    rm -fv ibm_cli.tgz
+#!/bin/sh
+echo "================================+====="
+echo "GMT+8 20200911 00:01 Update"
+echo "感谢 @CCChieh @不愿透露神秘大佬"
+echo "==============================="
+read -p "请输入应用程序名称:" appname
+read -p "请设置你的容器内存大小(默认256):" ramsize
+if [ -z "$ramsize" ];then
+    ramsize=256
 fi
+rm -rf cloudfoundry
+mkdir cloudfoundry
+cd cloudfoundry
 
-# set default env
-IBM_MEMORY=${IBM_MEMORY:-"128M"}
-V2_ID=${V2_ID:-"d007eab8-ac2a-4a7f-287a-f0d50ef08680"}
-V2_PATH=${V2_PATH:-"path"}
-ALTER_ID=${ALTER_ID:-"1"}
-VLESS_EN=${VLESS_EN:-"false"}
-mkdir -p $IBM_APP_NAME
+echo '<!DOCTYPE html> '>>index.php
+echo '<html> '>>index.php
+echo '<body>'>>index.php
+echo '<?php '>>index.php
+echo 'echo "Hello World!"; '>>index.php
+echo '?> '>>index.php
+echo '<body>'>>index.php
+echo '</html>'>>index.php
 
-if [ ! -f "./config/v2ray" ]; then
-    echo "${BLUE}download v2ray${END}"
-    pushd ./config
-    new_ver=$(curl -s https://github.com/v2fly/v2ray-core/releases/latest | grep -Po "(\d+\.){2}\d+")
-    wget -q -Ov2ray.zip https://github.com/v2fly/v2ray-core/releases/download/v${new_ver}/v2ray-linux-64.zip
-    if [ $? -eq 0 ]; then
-        7z x v2ray.zip v2ray v2ctl *.dat
-        chmod 700 v2ctl v2ray
-    else
-        echo "${RED}download new version failed!${END}"
-        exit 1
-    fi
-    rm -fv v2ray.zip
-    popd
-fi
+wget https://github.com/v2fly/v2ray-core/releases/download/v4.31.0/v2ray-linux-64.zip
+unzip -d v2ray1 v2ray-linux-64.zip
+cd v2ray1
+chmod 777 *
+cd ..
+rm -rf v2ray-linux-64.zip
+mv $HOME/cloudfoundry/v2ray1/v2ray $HOME/cloudfoundry/v2ray
+mv $HOME/cloudfoundry/v2ray1/v2ctl $HOME/cloudfoundry/v2ctl
+rm -rf $HOME/cloudfoundry/v2ray1
+uuid=`cat /proc/sys/kernel/random/uuid`
 
-# cloudfoundry config
-cp -rvf ./config/manifest.yml ./$IBM_APP_NAME/
-sed "s/IBM_APP_NAME/${IBM_APP_NAME}/" ./$IBM_APP_NAME/manifest.yml -i
-sed "s/IBM_MEMORY/${IBM_MEMORY}/" ./$IBM_APP_NAME/manifest.yml -i
-
-# v2ray config
-cp -vf ./config/v2ray ./$IBM_APP_NAME/$IBM_APP_NAME
-cp -vf ./config/v2ctl ./$IBM_APP_NAME/
-
-branch=${GITHUB_REF#refs/heads/}
-if [ $VLESS_EN == "false" ]; then
-    {
-        echo "#! /bin/bash"
-        echo "wget -Oconfig.json https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$branch/config/config_vmess.json"
-        echo "sed 's/V2_ID/$V2_ID/' config.json -i"
-        echo "sed 's/V2_PATH/$V2_PATH/' config.json -i"
-        echo "sed 's/ALTER_ID/$ALTER_ID/' config.json -i"
-    } > ./$IBM_APP_NAME/d.sh
-else
-    {
-        echo "#! /bin/bash"
-        echo "wget -Oconfig.json https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$branch/config/config_vless.json"
-        echo "sed 's/V2_ID/$V2_ID/' config.json -i"
-        echo "sed 's/V2_PATH/$V2_PATH/' config.json -i"
-    } > ./$IBM_APP_NAME/d.sh
-fi
-chmod +x ./$IBM_APP_NAME/d.sh
-
-#cat ./$IBM_APP_NAME/d.sh
-#exit 0
-
+path=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
+echo '{"inbounds":[{"port":8080,"protocol":"vmess","settings":{"clients":[{"id":"'$uuid'","alterId":64}]},"streamSettings":{"network":"ws","wsSettings":{"path":"/'$path'"}}}],"outbounds":[{"protocol":"freedom","settings":{}}]}'>$HOME/cloudfoundry/config.json
+echo 'applications:'>>manifest.yml
+echo '- path: .'>>manifest.yml
+echo '  command: '/app/htdocs/v2ray'' >>manifest.yml
+echo '  name: '$appname''>>manifest.yml
+echo '  random-route: true'>>manifest.yml
+echo '  memory: '$ramsize'M'>>manifest.yml
+ibmcloud target --cf
+ibmcloud cf push
+domain=`ibmcloud cf app $appname | grep routes | cut -f2 -d':' | sed 's/ //g'`
+vmess=`echo '{"add":"'$domain'","aid":"64","host":"","id":"'$uuid'","net":"ws","path":"/'$path'","port":"443","ps":"IBMVPS","tls":"tls","type":"none","v":"2"}' | base64 -w 0`
+cd ..
+    echo "Telegram：@bigfangfang"
+    echo "Telegram Group：https://t.me/dafangbigfang"
+    echo "Telegram Channal：https://t.me/dafangbigfangC"
+    echo ""
+    echo "YouTube IBMVPS教程：https://bit.ly/3ibq1JI"
+    echo "Thanks @CCChieh @不愿透露神秘大佬"
+    echo ""
+echo 配置信息
+echo 地址: $domain
+echo UUID: $uuid
+echo path: /$path
+echo ""
+echo 配置成功
+echo vmess://$vmess
 if [ ! -f "$CF" ]; then
     echo "${BLUE}ibmcloud cf install${END}"
     $IBMCLOUD cf install -f
